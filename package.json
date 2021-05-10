@@ -1,0 +1,21 @@
+{
+  "name": "selenium-js",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "firebase-admin": "^9.7.0",
+    "moment": "^2.29.1",
+    "node-cron": "^3.0.0",
+    "selenium-webdriver": "^4.0.0-beta.3"
+  },
+  "devDependencies": {
+    "eslint": "^7.26.0"
+  }
+}
