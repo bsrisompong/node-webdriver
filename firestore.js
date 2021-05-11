@@ -1,96 +1,111 @@
-const admin = require('firebase-admin')
 const moment = require('moment')
-var serviceAccount = require('./serviceAccountKey.json')
+// const admin = require('firebase-admin')
+// var serviceAccount = require('./serviceAccountKey.json')
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-})
-const db = admin.firestore()
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+// })
 
-const store = async (data) => {
+// ! CHANGE THIS
+const COLLECTION = 'math_rooms'
+
+const store = async (data, db) => {
+  const batch = db.batch()
+
   const {
     roomId,
     username,
     outerHTML,
-    lastDateObject,
+    lastestDateObject,
     messageCount: latestMessageCount = 0,
   } = data
-  // const roomRef = db.collection('rooms').doc(roomId)
-  const roomRef = db.collection('math_rooms').doc(roomId)
-  await roomRef.set({
+
+  const roomRef = db.collection(COLLECTION).doc(roomId)
+  // await roomRef.set()
+  /**
+   ** USE BATCH
+   */
+  batch.set(roomRef, {
     roomId,
     username,
     outerHTML,
-    lastDateObject,
+    lastestDateObject,
     latestMessageCount,
   })
+  // Commit the batch
+  // await batch.commit()
 }
 
-const storeMessage = async (data) => {
+const storeMessage = async (data, db, batch) => {
   const { roomId, messageId } = data
 
   const messagesRef = db
-    .collection('math_rooms')
+    .collection(COLLECTION)
     .doc(roomId)
     .collection('messages')
     .doc(messageId)
-  await messagesRef.set({ ...data, modifiedDate: moment() })
+  // await messagesRef.set({ ...data, modifiedDate: moment() })
+  batch.set(messagesRef, { ...data, modifiedDate: moment() })
+  // Commit the batch
+  // await batch.commit()
 }
 
-const getRoomMessages = async ({ roomId }) => {
+const getRoomMessages = async ({ roomId }, db) => {
   const messagesRef = db
-    .collection('math_rooms')
+    .collection(COLLECTION)
     .doc(roomId)
     .collection('messages')
   const message = await messagesRef.orderBy('timestamp').limit(1).get()
-  console.log('message: ', message)
+  if (message.exists) console.log('message: ', message.docs())
   const messages = await messagesRef.orderBy('timestamp').limit(3).get()
-  console.log('messages: ', messages)
+  if (message.exists) console.log('messages: ', messages.docs())
 }
 
-const checkIsAlreadyUpdated = async (data) => {
-  const { roomId, lastMessageId: messageId } = data
-  const roomRef = db.collection('math_rooms').doc(roomId)
+const checkIsAlreadyUpdated = async (data, db) => {
+  const { roomId, lastestMessageId: messageId } = data
+  const roomRef = db.collection(COLLECTION).doc(roomId)
   const roomDoc = await roomRef.get()
 
   if (!roomDoc.exists) {
     return false
   } else {
+    // find latest message
+    // const messagesRef = db
+    //   .collection('math_rooms')
+    //   .doc(roomId)
+    //   .collection('messages')
+
     const messageRef = db
-      .collection('math_rooms')
+      .collection(COLLECTION)
       .doc(roomId)
       .collection('messages')
       .doc(messageId)
     const messageDoc = await messageRef.get()
     if (!messageDoc.exists) {
-      await storeLastMessageId({ roomId, lastMessageId: messageId })
+      // await storeLastMessageId({ roomId, lastestMessageId: messageId })
       return false
     }
     return true
   }
 }
 
-const storeLastMessageId = async (data) => {
-  const { roomId, lastMessageId } = data
+const storeLastMessageId = async (data, db, batch) => {
+  const { roomId, lastestMessageId } = data
 
-  console.log('store lastMessageId', data)
+  console.log('store lastestMessageId', data)
 
-  const roomRef = db.collection('math_rooms').doc(roomId)
+  const roomRef = db.collection(COLLECTION).doc(roomId)
   const roomDoc = await roomRef.get()
-  // const roomMessagesRef = db
-  //   .collection('math_rooms')
-  //   .doc(roomId)
-  //   .collection('messages')
-  // const lastMessage = await roomMessagesRef.orderBy('timestamp').limit(1).get()
-  // console.log('lastMessagev: ', lastMessage.date())
+
   if (!roomDoc.exists) {
     console.log('No such document!')
   } else {
     console.log('Document data:', roomDoc.data())
-    await roomRef.update({
-      roomId,
-      lastMessageId,
-    })
+    batch.update(roomRef, { roomId, lastestMessageId })
+    // await roomRef.update({
+    //   roomId,
+    //   lastestMessageId,
+    // })
   }
 }
 module.exports = {

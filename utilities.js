@@ -13,8 +13,10 @@ const login = async (driver, By) => {
   const login = await driver.findElement(By.css('input[type="text"]'))
   const password = await driver.findElement(By.css('input[type="password"]'))
   const submit = await driver.findElement(By.css('button[type="submit"]'))
-  await login.sendKeys('bsrisompong@gmail.com')
-  await password.sendKeys('b3649919')
+  // ! CHANGE THIS
+  await login.sendKeys('')
+  // ! CHANGE THIS
+  await password.sendKeys('')
   await submit.click()
 
   // return currentUrl
@@ -55,4 +57,51 @@ const dateCase = async (str) => {
       return undefined
   }
 }
-module.exports = { later, login, scrollToTop, scrollToBottom, dateCase }
+
+const textToMoment = (date) => {
+  console.log('date: ', date)
+  let offset = 0
+  switch (true) {
+    case /\d{1,2}:\d{1,2}/.test(date):
+      return moment(date, 'hh:mm')
+    case /Yesterday/.test(date):
+      return moment().subtract(1, 'days')
+    case /Monday/.test(date):
+      return moment().startOf('isoWeek')
+    case /Tuesday/.test(date):
+      offset = 1
+      break
+    case /Wednesday/.test(date):
+      offset = 2
+      break
+    case /Thursday/.test(date):
+      offset = 3
+      break
+    case /Friday/.test(date):
+      offset = 4
+      break
+    case /Saturday/.test(date):
+      offset = 5
+      break
+    case /Sunday/.test(date):
+      offset = 6
+      break
+  }
+
+  const diff = moment().diff(
+    moment().startOf('isoWeek').add(offset, 'days'),
+    'days'
+  )
+  if (diff > 0) {
+    return moment().startOf('isoWeek').add(offset, 'days')
+  }
+  return moment().startOf('isoWeek').subtract(1, 'weeks').add(offset, 'days')
+}
+module.exports = {
+  later,
+  login,
+  scrollToTop,
+  scrollToBottom,
+  dateCase,
+  textToMoment,
+}
