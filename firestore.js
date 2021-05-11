@@ -7,7 +7,7 @@ const moment = require('moment')
 // })
 
 // ! CHANGE THIS
-const COLLECTION = 'math_rooms'
+const COLLECTION = 'math'
 
 const store = async (data, db) => {
   const batch = db.batch()

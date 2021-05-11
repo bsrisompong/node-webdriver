@@ -1,5 +1,6 @@
 const { Builder, By, Capabilities } = require('selenium-webdriver')
 const moment = require('moment')
+const _ = require('lodash')
 const admin = require('firebase-admin')
 var serviceAccount = require('./serviceAccountKey.json')
 
@@ -24,6 +25,7 @@ const {
   // checkIsAlreadyUpdated,
   // getRoomMessages,
 } = require('./firestore')
+const { forEach } = require('lodash')
 
 const chromeCapabilities = Capabilities.chrome()
 chromeCapabilities.set('chromeOptions', { args: ['--headless'] })
@@ -107,7 +109,7 @@ async function test() {
     // await scrollToBottom(driver, contentSecondary)
 
     // ? CHANGE THIS
-    let startIndex = 119
+    let startIndex = 1
 
     // ! FIND TARGET ELEMENT
     // const aTags = await contentSecondary.findElements(By.css('a'))
@@ -269,218 +271,235 @@ async function test() {
       //   })
       // )
 
-      let batch = db.batch()
       let index = 0
       // * Reading in sequence
-      for (const message of allMessages) {
-        console.log('storing chat message ...')
-        const messageClasses = await message.getAttribute('class')
 
-        let timestamp = moment(currentDate)
-        if (messageClasses.includes('chatsys')) {
-          const dateStr = await message.findElement(By.xpath('div')).getText()
-          const dateObj = await dateCase(dateStr)
-          // update date
-          if (dateObj) currentDate = dateObj
-        } else {
-          const timestampSpan = await message.findElement(
-            By.xpath(
-              'div[@class="chat-content"]/div[@data-id][last()]//span[last()]'
-            )
-          )
-          const t = await timestampSpan.getText()
-          console.log('timestamp : ', t)
-          const [mH, mM] = t.split(':')
-          currentDate.set('hour', mH)
-          currentDate.set('minute', mM)
-          timestamp = moment(currentDate)
-          console.log('timestamp : ', timestamp.format('ddd, MM DD YYYY hh:mm'))
-        }
+      /**
+       * @STORE_EVERY_MESSAGESSSS !!!!
+       */
 
-        // *
-        switch (true) {
-          case messageClasses.includes('chatsys'): {
-            // update current date
+      const messageChunk = _.chunk(allMessages, 500)
+      for (const chunk of messageChunk) {
+        for (const message of chunk) {
+          const batch = db.batch()
+          console.log('storing chat message ...')
+          const messageClasses = await message.getAttribute('class')
+
+          /**
+           * @GET_MESSAGE_TIMESTAMP
+           */
+          let timestamp = moment(currentDate)
+          if (messageClasses.includes('chatsys')) {
+            // chat system message
             const dateStr = await message.findElement(By.xpath('div')).getText()
             const dateObj = await dateCase(dateStr)
-            if (dateObj) {
-              currentDate = dateObj
-            }
+            // update date
+            if (dateObj) currentDate = dateObj
+          } else {
+            // not chat system message
+            const timestampSpan = await message.findElement(
+              By.xpath(
+                'div[@class="chat-content"]/div[@data-id][last()]//span[last()]'
+              )
+            )
+            const t = await timestampSpan.getText()
+            console.log('timestamp : ', t)
+            const [mH, mM] = t.split(':')
+            currentDate.set('hour', mH)
+            currentDate.set('minute', mM)
+            timestamp = moment(currentDate)
             console.log(
               'timestamp : ',
               timestamp.format('ddd, MM DD YYYY hh:mm')
             )
-            // console.log({ currentDate, dateObj, dateStr })
-            break
           }
-          case messageClasses.includes('chat-reverse') &&
-            messageClasses.includes('chat-secondary'): {
-            // Auto-response
-            break
-          }
-          case messageClasses.includes('chat-reverse chat-success'): {
-            // ! ------- ADMIN ------- ! //
-            const children = await message.findElements(
-              By.xpath('div[@class="chat-content"]/child::*')
-            )
 
-            let adminName = ''
-            // [.chat-header .chat-body, ..]
-            for (const child of children) {
-              const c = await child.getAttribute('class')
-              if (c.includes('chat-header')) {
-                adminName = await child.getText()
+          /**
+           * @HANDLE_MESSAGE_BY_TYPE
+           */
+          switch (true) {
+            case messageClasses.includes('chatsys'): {
+              // update current date
+              const dateStr = await message
+                .findElement(By.xpath('div'))
+                .getText()
+              const dateObj = await dateCase(dateStr)
+              if (dateObj) {
+                currentDate = dateObj
               }
-              if (c.includes('chat-body')) {
-                // TODO : store messageId
-                const messageId = await child.getAttribute('data-id')
-                // console.log('messageId: ', messageId)
-                const item = await child.findElement(By.css('.chat-item'))
-                const itemClass = await item.getAttribute('class')
-                switch (true) {
-                  case itemClass.includes('baloon'): {
-                    // check element is exist
-                    const result = await item.findElements(
-                      By.css('div.chat-item-text')
-                    )
-                    if (result.length === 0) continue
-                    const text = await item
-                      .findElement(By.css('div.chat-item-text'))
-                      .getText()
-                    await storeMessage(
-                      {
-                        roomId,
-                        messageId,
-                        source: {
-                          type: 'admin',
-                          username: adminName,
-                          userId: '',
+              console.log(
+                'timestamp : ',
+                timestamp.format('ddd, MM DD YYYY hh:mm')
+              )
+              break
+            }
+            case messageClasses.includes('chat-reverse') &&
+              messageClasses.includes('chat-secondary'): {
+              // Auto-response
+              break
+            }
+            case messageClasses.includes('chat-reverse chat-success'): {
+              /**
+               * @ADMIN_MESSAGE
+               */
+              const children = await message.findElements(
+                By.xpath('div[@class="chat-content"]/child::*')
+              )
+
+              let adminName = ''
+              // [.chat-header .chat-body, ..]
+              for (const child of children) {
+                const c = await child.getAttribute('class')
+                if (c.includes('chat-header')) {
+                  adminName = await child.getText()
+                }
+                if (c.includes('chat-body')) {
+                  // TODO : store messageId
+                  const messageId = await child.getAttribute('data-id')
+                  const item = await child.findElement(By.css('.chat-item'))
+                  const itemClass = await item.getAttribute('class')
+                  switch (true) {
+                    case itemClass.includes('baloon'): {
+                      // check element is exist
+                      const result = await item.findElements(
+                        By.css('div.chat-item-text')
+                      )
+                      if (result.length === 0) continue
+                      const text = await item
+                        .findElement(By.css('div.chat-item-text'))
+                        .getText()
+                      await storeMessage(
+                        {
+                          roomId,
+                          messageId,
+                          source: {
+                            type: 'admin',
+                            username: adminName,
+                            userId: '',
+                          },
+                          type: 'text',
+                          text,
+                          timestamp,
                         },
-                        type: 'text',
-                        text,
-                        timestamp,
-                      },
-                      db,
-                      batch
-                    )
-                    // console.log(adminName, '(Admin) : ', text)
-                    // console.log(timestamp.format(''))
-                    break
-                  }
-                  case itemClass.includes('rounded'): {
-                    const outerHTML = await item.getAttribute('outerHTML')
-                    const url = outerHTML
-                      .match(new RegExp('(?<=src=")https.*?(?=/preview)'))
-                      .shift()
-                    await storeMessage(
-                      {
-                        roomId,
-                        messageId,
-                        source: {
-                          type: 'admin',
-                          username: adminName,
-                          userId: '',
+                        db,
+                        batch
+                      )
+                      break
+                    }
+                    case itemClass.includes('rounded'): {
+                      const outerHTML = await item.getAttribute('outerHTML')
+                      const url = outerHTML
+                        .match(new RegExp('(?<=src=")https.*?(?=/preview)'))
+                        .shift()
+                      await storeMessage(
+                        {
+                          roomId,
+                          messageId,
+                          source: {
+                            type: 'admin',
+                            username: adminName,
+                            userId: '',
+                          },
+                          type: 'image',
+                          originalContentUrl: url,
+                          timestamp,
                         },
-                        type: 'image',
-                        originalContentUrl: url,
-                        timestamp,
-                      },
-                      db,
-                      batch
-                    )
-                    // console.log(adminName, '(Admin) : ', url)
-                    // console.log(timestamp.format(''))
-                    break
+                        db,
+                        batch
+                      )
+                      break
+                    }
                   }
                 }
               }
+              break
             }
-            break
-          }
 
-          case !messageClasses.includes('chat-reverse') &&
-            messageClasses.includes('chat-secondary'): {
-            // ! ------- USER ------- ! //
-            const username = await (
-              await contentPrimary.findElement(By.xpath('..//h4'))
-            ).getText()
-            const children = await message.findElements(
-              By.xpath('div[@class="chat-content"]/child::*')
-            )
+            case !messageClasses.includes('chat-reverse') &&
+              messageClasses.includes('chat-secondary'): {
+              /**
+               * @USER_MESSAGE
+               */
+              const username = await (
+                await contentPrimary.findElement(By.xpath('..//h4'))
+              ).getText()
+              const children = await message.findElements(
+                By.xpath('div[@class="chat-content"]/child::*')
+              )
 
-            // .chat-body
-            for (const child of children) {
-              const c = await child.getAttribute('class')
-              if (c.includes('chat-body')) {
-                // TODO : store messageId
-                const messageId = await child.getAttribute('data-id')
-                const item = await child.findElement(By.css('.chat-item'))
-                const itemClass = await item.getAttribute('class')
-                switch (true) {
-                  case itemClass.includes('baloon'): {
-                    const result = await item.findElements(
-                      By.css('div.chat-item-text')
-                    )
-                    if (result.length === 0) continue
-                    const text = await item
-                      .findElement(By.css('div.chat-item-text'))
-                      .getText()
-                    await storeMessage(
-                      {
-                        roomId,
-                        messageId,
-                        source: { type: 'user', username, userId: '' },
-                        type: 'text',
-                        text: text,
-                        timestamp,
-                      },
-                      db,
-                      batch
-                    )
-                    // user : ข้อนี้ทำยังไงค่ะ
-                    // console.log(username, ' : ', text)
-                    // console.log(timestamp.format())
+              // .chat-body
+              for (const child of children) {
+                const c = await child.getAttribute('class')
+                if (c.includes('chat-body')) {
+                  // TODO : store messageId
+                  const messageId = await child.getAttribute('data-id')
+                  const item = await child.findElement(By.css('.chat-item'))
+                  const itemClass = await item.getAttribute('class')
+                  switch (true) {
+                    case itemClass.includes('baloon'): {
+                      /**
+                       * @TEXT_MESSAGE
+                       */
+                      const result = await item.findElements(
+                        By.css('div.chat-item-text')
+                      )
+                      if (result.length === 0) continue
+                      const text = await item
+                        .findElement(By.css('div.chat-item-text'))
+                        .getText()
+                      await storeMessage(
+                        {
+                          roomId,
+                          messageId,
+                          source: { type: 'user', username, userId: '' },
+                          type: 'text',
+                          text: text,
+                          timestamp,
+                        },
+                        db,
+                        batch
+                      )
 
-                    break
-                  }
-                  case itemClass.includes('rounded'): {
-                    const outerHTML = await item.getAttribute('outerHTML')
-                    console.log('outerHTML: ', outerHTML)
+                      break
+                    }
+                    case itemClass.includes('rounded'): {
+                      /**
+                       * @IMAGE_MESSAGE
+                       */
+                      const outerHTML = await item.getAttribute('outerHTML')
+                      if (!outerHTML) continue
 
-                    const url = outerHTML
-                      .match(new RegExp('(?<=src=")https.*?(?=/preview)'))
-                      .shift()
-                    await storeMessage(
-                      {
-                        roomId,
-                        messageId,
-                        source: { type: 'user', username, userId: '' },
-                        type: 'image',
-                        originalContentUrl: url,
-                      },
-                      db,
-                      batch
-                    )
-                    // user : http
-                    // console.log(username, ' : <', url, '>')
-                    // console.log(timestamp.format())
+                      const url = outerHTML
+                        .match(new RegExp('(?<=src=")https.*?(?=/preview)'))
+                        .shift()
+                      await storeMessage(
+                        {
+                          roomId,
+                          messageId,
+                          source: { type: 'user', username, userId: '' },
+                          type: 'image',
+                          originalContentUrl: url,
+                        },
+                        db,
+                        batch
+                      )
+                      // user : http
+                      // console.log(username, ' : <', url, '>')
+                      // console.log(timestamp.format())
 
-                    break
+                      break
+                    }
                   }
                 }
               }
+              break
             }
-            break
+            default:
+              break
           }
-          default:
-            break
-        }
-        if (index === 499) {
+
           await batch.commit()
-          batch = db.batch()
-          i = 0
         }
-        i++
       }
 
       // ! STOP
