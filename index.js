@@ -482,6 +482,9 @@ async function test() {
         }
         i++
       }
+
+      // ! STOP
+      if (startIndex === 800) break
       startIndex++
     }
 
