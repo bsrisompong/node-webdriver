@@ -14,9 +14,9 @@ const login = async (driver, By) => {
   const password = await driver.findElement(By.css('input[type="password"]'))
   const submit = await driver.findElement(By.css('button[type="submit"]'))
   // ! CHANGE THIS
-  await login.sendKeys('')
+  await login.sendKeys('bsrisompong@gmail.com')
   // ! CHANGE THIS
-  await password.sendKeys('')
+  await password.sendKeys('b3649919')
   await submit.click()
 
   // return currentUrl

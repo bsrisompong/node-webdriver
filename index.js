@@ -28,7 +28,8 @@ const {
 const chromeCapabilities = Capabilities.chrome()
 chromeCapabilities.set('chromeOptions', { args: ['--headless'] })
 
-async function test() {
+async function test({ start = 1, end }) {
+  console.log(start, end)
   // const driver = new Builder().forBrowser('chrome').build()
   let driver = new Builder()
     .forBrowser('chrome')
@@ -107,7 +108,7 @@ async function test() {
     // await scrollToBottom(driver, contentSecondary)
 
     // ? CHANGE THIS
-    let startIndex = 119
+    let startIndex = start
 
     // ! FIND TARGET ELEMENT
     // const aTags = await contentSecondary.findElements(By.css('a'))
@@ -272,8 +273,8 @@ async function test() {
       let batch = db.batch()
       let index = 0
       // * Reading in sequence
+      console.log('storing chat message ...')
       for (const message of allMessages) {
-        console.log('storing chat message ...')
         const messageClasses = await message.getAttribute('class')
 
         let timestamp = moment(currentDate)
@@ -289,12 +290,11 @@ async function test() {
             )
           )
           const t = await timestampSpan.getText()
-          console.log('timestamp : ', t)
           const [mH, mM] = t.split(':')
           currentDate.set('hour', mH)
           currentDate.set('minute', mM)
           timestamp = moment(currentDate)
-          console.log('timestamp : ', timestamp.format('ddd, MM DD YYYY hh:mm'))
+          // console.log('timestamp : ', timestamp.format('ddd, MM DD YYYY hh:mm'))
         }
 
         // *
@@ -306,10 +306,10 @@ async function test() {
             if (dateObj) {
               currentDate = dateObj
             }
-            console.log(
-              'timestamp : ',
-              timestamp.format('ddd, MM DD YYYY hh:mm')
-            )
+            // console.log(
+            //   'timestamp : ',
+            //   timestamp.format('ddd, MM DD YYYY hh:mm')
+            // )
             // console.log({ currentDate, dateObj, dateStr })
             break
           }
@@ -445,7 +445,7 @@ async function test() {
                   }
                   case itemClass.includes('rounded'): {
                     const outerHTML = await item.getAttribute('outerHTML')
-                    console.log('outerHTML: ', outerHTML)
+                    // console.log('outerHTML: ', outerHTML)
 
                     const url = outerHTML
                       .match(new RegExp('(?<=src=")https.*?(?=/preview)'))
@@ -484,7 +484,7 @@ async function test() {
       }
 
       // ! STOP
-      if (startIndex === 800) break
+      if (end && end >= startIndex) break
       startIndex++
     }
 
@@ -492,10 +492,11 @@ async function test() {
     // console.log('pageSource: ', pageSource)
     // console.log('html: ', html)
   } catch (e) {
-    console.error(e)
+    console.log(e)
+    throw e
   } finally {
     await driver.quit()
   }
 }
 
-test()
+module.exports = { test }
