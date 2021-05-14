@@ -10,30 +10,65 @@ const moment = require('moment')
 const COLLECTION = 'math'
 
 const store = async (data, db) => {
-  const batch = db.batch()
+ 
+  // const batch = db.batch()
 
   const {
     roomId,
     username,
-    outerHTML,
+    // outerHTML,
     lastestDateObject,
     messageCount: latestMessageCount = 0,
   } = data
 
+
   const roomRef = db.collection(COLLECTION).doc(roomId)
-  // await roomRef.set()
-  /**
-   ** USE BATCH
-   */
-  batch.set(roomRef, {
+  await roomRef.set({
     roomId,
     username,
-    outerHTML,
+    // outerHTML,
     lastestDateObject,
     latestMessageCount,
   })
-  // Commit the batch
-  // await batch.commit()
+//   const room = await roomRef.get()
+//   if(room.exists) {
+//     // batch.update(roomRef, {
+//     //   roomId,
+//     //   username,
+//     //   outerHTML,
+//     //   lastestDateObject,
+//     //   latestMessageCount,
+//     // })
+//     // await roomRef.update({
+//   //   roomId,
+//   //   username,
+//   //   outerHTML,
+//   //   lastestDateObject,
+//   //   latestMessageCount,
+//   // })
+//   }
+//   else {
+
+//   await roomRef.set({
+//     roomId,
+//     username,
+//     outerHTML,
+//     lastestDateObject,
+//     latestMessageCount,
+//   })
+//   /**
+//    ** USE BATCH
+//    */
+//   // batch.set(roomRef, {
+//   //   roomId,
+//   //   username,
+//   //   outerHTML,
+//   //   lastestDateObject,
+//   //   latestMessageCount,
+//   // })
+// }
+//   // Commit the batch
+//   // await batch.commit()
 }
 
 const storeMessage = async (data, db, batch) => {

@@ -14,9 +14,9 @@ const login = async (driver, By) => {
   const password = await driver.findElement(By.css('input[type="password"]'))
   const submit = await driver.findElement(By.css('button[type="submit"]'))
   // ! CHANGE THIS
-  await login.sendKeys('')
+  await login.sendKeys('bsrisompong@gmail.com')
   // ! CHANGE THIS
-  await password.sendKeys('')
+  await password.sendKeys('b3649919')
   await submit.click()
 
   // return currentUrl
@@ -50,7 +50,7 @@ const dateCase = async (str) => {
     case /\w{3}, \w{3,4} \d{1,3}/.test(str):
       return moment(str, 'ddd, MMM DD')
     case /\d{1,2}\/\d{2}\/\d{4}/.test(str):
-      return moment(str)
+      return moment(str,'MM/DD/YYYY')
     case /\d{1,2}:\d{2}.*/.test(str):
       return undefined
     default:

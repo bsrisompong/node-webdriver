@@ -89,4 +89,18 @@ const writeBatch = async () => {
   }
 }
 
-writeBatch()
+const countUser = async () => {
+  const mathRef = db.collection('math')
+  const snapshot = await mathRef.get()
+  const count = snapshot.length
+
+  console.log(count)
+
+  let index = 1
+  snapshot.forEach((doc)=>{
+    console.log(doc.data().username)
+    console.log(index)
+    index++
+  })
+}
+countUser()
